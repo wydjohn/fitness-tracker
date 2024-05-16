@@ -5,6 +5,7 @@ import jwt
 import datetime
 from functools import wraps
 import os
+import uuid
 
 app = Flask(__name__)
 
@@ -30,22 +31,18 @@ class WorkoutLog(db.Model):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
-
-        if 'x-access-token' in request.headers:
-            token = request.headers['x-access-token']
+        token = request.headers.get('x-access-token')
 
         if not token:
             return jsonify({'message': 'Token is missing!'}), 401
 
-        try: 
+        try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user = User.query.filter_by(public_id=data['public_id']).first()
         except:
             return jsonify({'message': 'Token is invalid!'}), 401
 
         return f(current_user, *args, **kwargs)
-
     return decorated
 
 @app.route('/user', methods=['POST'])
@@ -82,7 +79,6 @@ def login_user():
 @token_required
 def add_workout(current_user):
     data = request.get_json()
-    
     new_workout = WorkoutLog(description=data['description'], user_id=current_user.id)
     db.session.add(new_workout)
     db.session.commit()
@@ -96,16 +92,10 @@ def get_workouts(current_user, user_id):
         return jsonify({'message': 'Cannot perform that function!'})
 
     workouts = WorkoutLog.query.filter_by(user_id=user_id).all()
-
-    output = []
-
-    for workout in workouts:
-        workout_data = {}
-        workout_data['id'] = workout.id
-        workout_data['date'] = workout.date
-        workout_data['description'] = workout.description
-        workout_data['user_id'] = workout.user_id
-        output.append(workout_data)
+    output = [
+        {'id': workout.id, 'date': workout.date, 'description': workout.description, 'user_id': workout.user_id}
+        for workout in workouts
+    ]
 
     return jsonify({'workouts': output})
 
