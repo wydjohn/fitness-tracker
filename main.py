@@ -40,8 +40,8 @@ def token_required(f):
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user = User.query.filter_by(public_id=data['public_id']).first()
-        except:
-            return jsonify({'message': 'Token is invalid!'}), 401
+        except Exception as e:
+            return jsonify({'message': f'Token is invalid! Error: {str(e)}'}), 401
         return f(current_user, *args, **kwargs)
     return decorated
 
@@ -49,54 +49,70 @@ def token_required(f):
 @app.route('/user', methods=['POST'])
 def create_user():
     data = request.get_json()
-    hashed_password = generate_password_hash(data['password'], method='sha256')
-    new_user = User(public_id=str(uuid.uuid4()), name=data['name'], password=hashed_password, admin=False)
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'New user created!'})
+    try:
+        hashed_password = generate_password_hash(data['password'], method='sha256')
+        new_user = User(public_id=str(uuid.uuid4()), name=data['name'], password=hashed_password, admin=False)
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({'message': 'New user created!'})
+    except Exception as e:
+        return jsonify({'message': f'Failed to create new user. Error: {str(e)}'}), 500
 
 
 @app.route('/login', methods=['POST'])
 def login_user():
     auth = request.authorization
-    if not auth or not auth.username or not auth.password:
-        return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
-    user = User.query.filter_by(name=auth.username).first()
-    if not user:
-        return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
-    if check_password_hash(user.password, auth.password):
-        token = jwt.encode({'public_id': user.public_id, 'exp': datetime.utcnow() + timedelta(minutes=30)}, app.config['SECRET_KEY'], algorithm="HS256")
-        return jsonify({'token': token})
-    return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+    try:
+        if not auth or not auth.username or not auth.password:
+            return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+        user = User.query.filter_by(name=auth.username).first()
+        if not user:
+            return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+        if check_password_hash(user.password, auth.password):
+            token = jwt.encode({'public_id': user.public_id, 'exp': datetime.utcnow() + timedelta(minutes=30)}, app.config['SECRET_KEY'], algorithm="HS256")
+            return jsonify({'token': token})
+        else:
+            return make_response('Could not verify', 401, {'WWW-Authenticate': 'Basic realm="Login required!"'})
+    except Exception as e:
+        return jsonify({'message': f'Login error. Error: {str(e)}'}), 500
 
 
 @app.route('/workout', methods=['POST'])
 @token_required
 def add_workout(current_user):
     data = request.get_json()
-    new_workout = WorkoutLog(description=data['description'], user_id=current_user.id)
-    db.session.add(new_workout)
-    db.session.commit()
-    return jsonify({'message': 'Workout log created!'})
+    try:
+        new_workout = WorkoutLog(description=data['description'], user_id=current_user.id)
+        db.session.add(new_workout)
+        db.session.commit()
+        return jsonify({'message': 'Workout log created!'})
+    except Exception as e:
+        return jsonify({'message': f'Failed to create workout log. Error: {str(e)}'}), 500
 
 
 @app.route('/workout/<user_id>', methods=['GET'])
 @token_required
 def get_workouts(current_user, user_id):
-    if not current_user.admin:
-        return jsonify({'message': 'Cannot perform that function!'})
-    workouts = WorkoutLog.query.filter_by(user_id=user_id).all()
-    output = [
-        {'id': workout.id, 'date': workout.date.strftime('%Y-%m-%d %H:%M'), 'description': workout.description, 'user_id': workout.user_id}
-        for workout in workouts
-    ]
-    return jsonify({'workouts': output})
+    try:
+        if not current_user.admin:
+            return jsonify({'message': 'Cannot perform that function!'})
+        workouts = WorkoutLog.query.filter_by(user_id=user_id).all()
+        output = [
+            {'id': workout.id, 'date': workout.date.strftime('%Y-%m-%d %H:%M'), 'description': workout.description, 'user_id': workout.user_id}
+            for workout in workouts
+        ]
+        return jsonify({'workouts': output})
+    except Exception as e:
+        return jsonify({'message': f'Failed to retrieve workouts. Error: {str(e)}'}), 500
 
 
 @app.route('/workoutplan', methods=['POST'])
 @token_required
 def generate_workout_plan(current_user):
-    return jsonify({'message': 'Workout plan generated for the user.'})
+    try:
+        return jsonify({'message': 'Workout plan generated for the user.'})
+    except Exception as e:
+        return jsonify({'message': f'Failed to generate workout plan. Error: {str(e)}'}), 500
 
 
 if __name__ == '__main__':
