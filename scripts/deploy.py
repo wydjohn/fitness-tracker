@@ -61,11 +61,16 @@ def deploy_ml_model():
         sys.exit(1)
     run_command(f"scp {MODEL_PATH} root@{SERVER_IP}:/path/to/your/model/directory")
 
+def output_logs():
+    print("\nOutputting logs...")
+    run_command(f"ssh root@{SERVER_IP} 'docker-compose logs -f your_service_name'")
+
 def main():
     deploy_server()
     check_server_health()
     setup_database()
     deploy_ml_model()
+    output_logs()
     print("\nDeployment process completed successfully!")
 
 if __name__ == "__main__":
