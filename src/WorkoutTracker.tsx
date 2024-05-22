@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import './WorkoutTracker.css';
 
@@ -10,37 +10,37 @@ interface Workout {
   date: string;
 }
 
-interface WorkoutInput {
+interface NewWorkoutData {
   type: string;
   duration: string;
   intensity: string;
 }
 
 const WorkoutTracker: React.FC = () => {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [newWorkout, setNewWorkout] = useState<WorkoutInput>({ type: '', duration: '', intensity: '' });
+  const [workoutLogs, setWorkoutLogs] = useState<Workout[]>([]);
+  const [workoutFormData, setWorkoutFormData] = useState<NewWorkoutData>({ type: '', duration: '', intensity: '' });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setNewWorkout({ ...newWorkout, [e.target.name]: e.target.value });
+  const handleFormInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setWorkoutFormData({ ...workoutFormData, [e.target.name]: e.target.value });
   };
 
-  const addWorkout = () => {
-    const newEntry = {
-      id: workouts.length + 1,
-      type: newWorkout.type,
-      duration: parseInt(newWorkout.duration),
-      intensity: newWorkout.intensity,
+  const handleAddWorkout = () => {
+    const newWorkout = {
+      id: workoutLogs.length + 1,
+      type: workoutFormData.type,
+      duration: parseInt(workoutFormData.duration),
+      intensity: workoutFormData.intensity,
       date: new Date().toLocaleDateString(),
     };
 
-    if (newEntry.type && newEntry.duration > 0) {
-      setWorkouts([...workouts, newEntry]);
+    if (newWorkout.type && newWorkout.duration > 0) {
+      setWorkoutLogs([...workoutLogs, newWorkout]);
     }
   };
 
-  const renderChart = () => {
+  const renderWorkoutProgressChart = () => {
     return (
-      <LineChart width={600} height={300} data={workouts}>
+      <LineChart width={600} height={300} data={workoutLogs}>
         <XAxis dataKey="date" />
         <YAxis />
         <Tooltip />
@@ -54,31 +54,31 @@ const WorkoutTracker: React.FC = () => {
   return (
     <div className="workout-tracker">
       <h2>Workout Tracker</h2>
-      <div className="workout-inputs">
+      <div className="workout-form">
         <input
           type="text"
           name="type"
           placeholder="Workout Type"
-          value={newWorkout.type}
-          onChange={handleInputChange}
+          value={workoutFormData.type}
+          onChange={handleFormInputChange}
         />
         <input
           type="number"
           name="duration"
           placeholder="Duration (in minutes)"
-          value={newWorkout.duration}
-          onChange={handleInputChange}
+          value={workoutFormData.duration}
+          onChange={handleFormInputChange}
         />
-        <select name="intensity" value={newWorkout.intensity} onChange={handleInputChange}>
+        <select name="intensity" value={workoutFormData.intensity} onChange={handleFormInputChange}>
           <option value="">Select Intensity</option>
           <option value="Low">Low</option>
           <option value="Medium">Medium</option>
           <option value="High">High</option>
         </select>
-        <button onClick={addWorkout}>Add Workout</button>
+        <button onClick={handleAddWorkout}>Add Workout</button>
       </div>
-      <div className="workout-progress">
-        {workouts.length > 0 ? renderChart() : <p>No workouts logged yet.</p>}
+      <div className="workout-chart">
+        {workoutLogs.length > 0 ? renderWorkoutProgressChart() : <p>No workouts logged yet.</p>}
       </div>
     </div>
   );
