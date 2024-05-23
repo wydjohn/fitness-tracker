@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import './WorkoutTracker.css';
 
@@ -38,7 +38,8 @@ const WorkoutTracker: React.FC = () => {
     }
   };
 
-  const renderWorkoutProgressChart = () => {
+  // Using useMemo to only re-calculate the chart when workoutLogs changes
+  const workoutProgressChart = useMemo(() => {
     return (
       <LineChart width={600} height={300} data={workoutLogs}>
         <XAxis dataKey="date" />
@@ -49,7 +50,7 @@ const WorkoutTracker: React.FC = () => {
         <Legend />
       </LineChart>
     );
-  };
+  }, [workoutLogs]); // Dependency array, useMemo will only recompute if workoutLogs changes
 
   return (
     <div className="workout-tracker">
@@ -78,7 +79,7 @@ const WorkoutTracker: React.FC = () => {
         <button onClick={handleAddWorkout}>Add Workout</button>
       </div>
       <div className="workout-chart">
-        {workoutLogs.length > 0 ? renderWorkoutProgressChart() : <p>No workouts logged yet.</p>}
+        {workoutLogs.length > 0 ? workoutProgressChart : <p>No workouts logged yet.</p>}
       </div>
     </div>
   );
