@@ -26,12 +26,12 @@ export const useWorkoutService = (): UseWorkoutHookResponse => {
 
   const handleError = (error: AxiosError | Error) => {
     if (axios.isAxiosError(error)) {
-      // The error is an AxiosError, indicating an error response from the server or a network error.
+      // Handling Axios error
       const message = error.response?.data?.message || error.message;
-      console.error("Axios error:", message); // Example of more detailed logging.
+      console.error("Axios error:", message);
       setErrorMessage(message);
     } else {
-      // The error is some other type of JavaScript error, not related to Axios or the network request.
+      // Handling non-Axios error
       console.error("Unexpected error:", error.message);
       setErrorMessage('An unexpected error occurred.');
     }
@@ -55,13 +55,16 @@ export const useWorkoutService = (): UseWorkoutHookResponse => {
     setErrorMessage(null);
     try {
       await axios.put(`${workoutApiUrl}/workouts/${workoutId}`, { progress });
-      await fetchWorkoutData();
+      // Here we update the state directly instead of re-fetching from the server
+      if (workoutData && workoutData.id === workoutId) {
+        setWorkoutData({ ...workoutData, progress });
+      }
     } catch (error) {
       handleError(error);
     } finally {
       setIsLoading(false);
     }
-  }, [workoutApiUrl, fetchWorkoutData]);
+  }, [workoutApiUrl, workoutData]);
 
   useEffect(() => {
     fetchWorkoutData();
