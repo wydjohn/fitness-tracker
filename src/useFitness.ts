@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import axios, { AxiosError } from 'axios';
 
-interface WorkoutData {
+interface Workout {
   id: number;
   name: string;
   completed: boolean;
@@ -9,72 +9,70 @@ interface WorkoutData {
   personalizedRecommendations: string[];
 }
 
-interface UseWorkoutHookResponse {
-  workoutData: WorkoutData | null;
-  fetchWorkoutData: () => Promise<void>;
-  updateWorkoutProgress: (workoutId: number, progress: number) => Promise<void>;
+interface UseWorkoutServiceResult {
+  currentWorkout: Workout | null;
+  loadWorkout: () => Promise<void>;
+  updateProgress: (id: number, newProgress: number) => Promise<void>;
   isLoading: boolean;
-  errorMessage: string | null;
+  error: string | null;
 }
 
-export const useWorkoutService = (): UseWorkoutHookResponse => {
-  const [workoutData, setWorkoutData] = useState<WorkoutData | null>(null);
+export const useWorkoutService = (): UseWorkoutServiceResult => {
+  const [currentWorkout, setCurrentWorkout] = useState<Workout | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const workoutApiUrl = process.env.REACT_APP_WORKOUT_API_URL;
+  const workoutServiceUrl = process.env.REACT_APP_WORKOUT_API_URL;
 
-  const handleError = (error: AxiosError | Error) => {
-    if (axios.isAxiosError(error)) {
-      // Handling Axios error
-      const message = error.response?.data?.message || error.message;
-      console.error("Axios error:", message);
-      setErrorMessage(message);
+  const handleServiceError = (serviceError: AxiosError | Error) => {
+    if (axios.isAxiosError(serviceError)) {
+      const errorMessage = serviceError.response?.data?.message || serviceError.message;
+      console.error("Service Error:", errorMessage);
+      setError(errorMessage);
     } else {
-      // Handling non-Axios error
-      console.error("Unexpected error:", error.message);
-      setErrorMessage('An unexpected error occurred.');
+      console.error("Unexpected Error:", serviceError.message);
+      setError('An unexpected error occurred.');
     }
   };
 
-  const fetchWorkoutData = useCallback(async (): Promise<void> => {
+  const loadWorkout = useCallback(async (): Promise<void> => {
     setIsLoading(true);
-    setErrorMessage(null);
+    setError(null);
     try {
-      const response = await axios.get(`${workoutApiUrl}/workouts`);
-      setWorkoutData(response.data);
-    } catch (error) {
-      handleError(error);
+      const response = await axios.get(`${workoutServiceUrl}/workouts`);
+      setCurrentWorkout(response.data);
+    } catch (serviceError) {
+      handleServiceError(serviceError);
     } finally {
       setIsLoading(false);
     }
-  }, [workoutApiUrl]);
+  }, [workoutServiceUrl]);
 
-  const updateWorkoutProgress = useCallback(async (workoutId: number, progress: number): Promise<void> => {
+  const updateProgress = useCallback(async (id: number, newProgress: number): Promise<void> => {
     setIsLoading(true);
-    setErrorMessage(null);
+    setError(null);
     try {
-      await axios.put(`${workoutApiUrl}/workouts/${workoutId}`, { progress });
-      // Here we update the state directly instead of re-fetching from the server
-      if (workoutData && workoutData.id === workoutId) {
-        setWorkoutData({ ...workoutData, progress });
+      await axios.put(`${workoutServiceUrl}/workouts/${id}`, { progress: newProgress });
+      // Directly update state instead of re-fetching
+      if (currentWorkout && currentWorkout.id === id) {
+        setCurrentWorkout({ ...currentWorkout, progress: newProgress });
       }
-    } catch (error) {
-      handleError(error);
+    } catch (serviceError) {
+      handleServiceError(serviceError);
     } finally {
       setIsLoading(false);
     }
-  }, [workoutApiUrl, workoutData]);
+  }, [workoutServiceUrl, currentWorkout]);
 
   useEffect(() => {
-    fetchWorkoutData();
-  }, [fetchWorkoutData]);
+    loadWorkout();
+  }, [loadWorkout]);
 
   return {
-    workoutData,
-    fetchWorkoutData,
-    updateWorkoutProgress,
+    workoutData: currentWorkout,
+    fetchWorkoutData: loadWorkout,
+    updateWorkoutProgress: updateProgress,
     isLoading,
-    errorMessage,
+    errorMessage: error,
   };
 };
