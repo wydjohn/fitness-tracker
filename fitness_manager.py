@@ -8,24 +8,33 @@ from sklearn.ensemble import RandomForestClassifier
 load_dotenv()
 
 DATABASE_PATH = os.getenv('DATABASE_URL')
-connection = sqlite3.connect(DATABASE_PATH)
-cursor = connection.cursor()
 
-cursor.execute('''CREATE TABLE IF NOT EXISTS workout_logs
-               (id INTEGER PRIMARY KEY, date TEXT, activity TEXT, duration INTEGER, intensity TEXT)''')
-connection.commit()
+class DatabaseContextManager:
+    def __enter__(self):
+        self.conn = sqlite3.connect(DATABASE_PATH)
+        return self.conn.cursor()
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.conn.commit()
+        self.conn.close()
+
+def setup_database():
+    with DatabaseContextManager() as cursor:
+        cursor.execute('''CREATE TABLE IF NOT EXISTS workout_logs
+                       (id INTEGER PRIMARY KEY, date TEXT, activity TEXT, duration INTEGER, intensity TEXT)''')
 
 class WorkoutLogger:
     @staticmethod
     def add_workout_log(date, activity, duration, intensity):
-        cursor.execute("INSERT INTO workout_logs (date, activity, duration, intensity) VALUES (?, ?, ?, ?)",
-                    (date, activity, duration, intensity))
-        connection.commit()
+        with DatabaseContextManager() as cursor:
+            cursor.execute("INSERT INTO workout_logs (date, activity, duration, intensity) VALUES (?, ?, ?, ?)",
+                        (date, activity, duration, intensity))
     
     @staticmethod
     def fetch_all_logs():
-        cursor.execute("SELECT * FROM workout_logs")
-        return cursor.fetchall()
+        with DatabaseContextManager() as cursor:
+            cursor.execute("SELECT * FROM workout_logs")
+            return cursor.fetchall()
     
     @staticmethod
     def modify_workout_log(log_id, date=None, activity=None, duration=None, intensity=None):
@@ -46,39 +55,42 @@ class WorkoutLogger:
         update_query = update_query.rstrip(", ")
         update_query += " WHERE id = ?"
         parameters.append(log_id)
-        cursor.execute(update_query, tuple(parameters))
-        connection.commit()
+        with DatabaseContextManager() as cursor:
+            cursor.execute(update_query, tuple(parameters))
     
     @staticmethod
     def remove_workout_log(log_id):
-        cursor.execute("DELETE FROM workout_logs WHERE id = ?", (log_id,))
-        connection.commit()
+        with DatabaseContextManager() as cursor:
+            cursor.execute("DELETE FROM workout_logs WHERE id = ?", (log_id,))
 
 class WorkoutPredictor:
     @staticmethod
     def display_workout_data_summary():
-        dataframe = pd.read_sql_query("SELECT * FROM workout_logs", connection)
-        print(dataframe.describe())
+        with DatabaseContextManager() as cursor:
+            dataframe = pd.read_sql_query("SELECT * FROM workout_logs", cursor.connection)
+            print(dataframe.describe())
     
     @staticmethod
     def recommend_workout_plan(input_features):
-        dataframe = pd.read_sql_query("SELECT * FROM workout_logs", connection)
-        if len(dataframe) < 10:  
-            return "Insufficient data for personalized workout recommendations."
+        with DatabaseContextManager() as cursor:
+            dataframe = pd.read_sql_query("SELECT * FROM workout_logs", cursor.connection)
+            if len(dataframe) < 10:  
+                return "Insufficient data for personalized workout recommendations."
+            
+            dataframe = pd.get_dummies(dataframe, columns=['intensity'])  
+            features = dataframe.drop(['id', 'date', 'activity'], axis=1)
+            target = dataframe['activity']
         
-        dataframe = pd.get_dummies(dataframe, columns=['intensity'])  
-        features = dataframe.drop(['id', 'date', 'activity'], axis=1)
-        target = dataframe['activity']
+            features_train, features_test, target_train, target_test = train_test_split(features, target, test_size=0.2, random_state=42)
         
-        features_train, features_test, target_train, target_test = train_test_split(features, target, test_size=0.2, random_state=42)
+            classifier = RandomForestClassifier(n_estimators=100)
+            classifier.fit(features_train, target_train)
         
-        classifier = RandomForestClassifier(n_estimators=100)
-        classifier.fit(features_train, target_train)
-        
-        recommended_activity = classifier.predict([input_features])
-        return recommended_activity
+            recommended_activity = classifier.predict([input_features])
+            return recommended_activity
 
 if __name__ == "__main__":
+    setup_database()
     WorkoutLogger.add_workout_log('2023-07-01', 'Running', 30, 'High')
     print("Workout Log Added")
     print("All Workout Logs:", WorkoutLogger.fetch_all_logs())
@@ -86,4 +98,4 @@ if __name__ == "__main__":
     print("Logs After Update:", WorkoutLogger.fetch_all_logs())
     WorkoutPredictor.display_workout_data_summary()
     input_for_prediction = [20, 0, 1, 0]  
-    print("Recommended Workout Activity:", WorkoutPredictor.recommend_workout_plan(input_for_cameras))
+    print("Recommended Workout Activity:", WorkoutPredictor.recommend_workand _plan(input_for_prediction))
