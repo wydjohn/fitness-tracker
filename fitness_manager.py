@@ -89,13 +89,42 @@ class WorkoutPredictor:
             recommended_activity = classifier.predict([input_features])
             return recommended_activity
 
+    @staticmethod
+    def display_popular_workouts():
+        with DatabaseContextManager() as cursor:
+            query = '''
+            SELECT activity, intensity, COUNT(activity) as frequency 
+            FROM workout_logs 
+            GROUP BY activity, intensity
+            ORDER BY frequency DESC
+            LIMIT 3
+            '''
+            cursor.execute(query)
+            popular_workouts = cursor.fetchall()
+            print("Most Popular Workouts & Intensities:\n", popular_workouts)
+
+def get_user_input():
+    print("Enter workout log details")
+    date = input("Date (YYYY-MM-DD): ")
+    activity = input("Activity: ")
+    duration = input("Duration (in minutes): ")
+    intensity = input("Intensity (Low/Medium/High): ")
+    return date, activity, duration, intensity
+
 if __name__ == "__main__":
     setup_database()
-    WorkoutLogger.add_workout_log('2023-07-01', 'Running', 30, 'High')
-    print("Workout Log Added")
-    print("All Workout Logs:", WorkoutLogger.fetch_all_logs())
-    WorkoutLogger.modify_workout_log(1, activity='Cycling')
-    print("Logs After Update:", WorkoutLogger.fetch_all_logs())
-    WorkoutPredictor.display_workout_data_summary()
-    input_for_prediction = [20, 0, 1, 0]  
-    print("Recommended Workout Activity:", WorkoutPredictor.recommend_workand _plan(input_for_prediction))
+    while True:
+        user_choice = input("Choose an option: [1] Add Log [2] View Summary [3] View Popular Workouts [4] Exit: ")
+        if user_choice == "1":
+            date, activity, duration, intensity = get_user_input()
+            WorkoutLogger.add_workout_log(date, activity, duration, intensity)
+            print("Workout Log Added")
+        elif user_choice == "2":
+            WorkoutPredictor.display_workout_data_summary()
+        elif user_choice == "3":
+            WorkoutPredictor.display_popular_workouts()
+        elif user_choice == "4":
+            print("Exiting.")
+            break
+        else:
+            print("Invalid option, please try again.")
