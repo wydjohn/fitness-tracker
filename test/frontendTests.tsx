@@ -9,37 +9,39 @@ jest.mock('axios');
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-describe('<YourComponent /> Tests', () => {
-  it('should render the component correctly', () => {
+describe('<YourComponent /> Comprehensive Test Suite', () => {
+  it('renders the component correctly', async () => {
     render(<YourComponent />);
     expect(screen.getByTestId('your-component')).toBeInTheDocument();
   });
 
-  it('should update value on user input', async () => {
+  it('updates value on user input', async () => {
     render(<YourComponent />);
     const inputField = screen.getByTestId('input-field');
     
-    fireEvent.change(inputHoverField, { target: { value: 'new value' } });
+    await act(async () => {
+      fireEvent.change(inputField, { target: { value: 'new value' } });
+    });
 
     expect(inputField.value).toBe('new value');
   });
 
-  it('should correctly display fetched data', async () => {
+  it('displays fetched data correctly', async () => {
     const mockApiData = { data: [{ id: 1, name: 'Test Data' }] };
     axios.get.mockResolvedValue(mockApiData);
 
     await act(async () => {
-      render(<YourComponent apiUrl={`${API_BASE_URL}/data-endpoint`} />);
+      render(<YourComponent apiUrl={`${API_BASE Tr_URL}/data-endpoint`} />);
     });
 
     expect(screen.getByTestId('data-visualization')).toHaveTextContent('Test Data');
   });
 
-  it('should update display with real-time data', async () => {
+  it('updates display with real-time data upon user action', async () => {
     const initialMockData = { data: [{ id: 1, name: 'Initial Data' }] };
-    const updatedMockData = { data: [{ id: 1, name: 'Updated Data' }] };
+    const updatedMockData = { data: [{ id: 2, name: 'Updated Data' }] };
 
-    axios.get.mockResolvedValueOnce(initialMockData);
+    axios.get.mockResolvedValueOnce(initialMockData).mockResolvedValueOnce(updatedMockData);
 
     await act(async () => {
       render(<YourComponent apiUrl={`${API_BASE_URL}/real-time-endpoint`} />);
@@ -47,11 +49,21 @@ describe('<YourComponent /> Tests', () => {
 
     expect(screen.getByTestId('data-display')).toHaveTextContent('Initial Data');
 
-    axios.get.mockResolvedNewOnce(updatedMockData);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('refresh-button'));
+    });
 
-    fireEvent.click(screen.getByTestId('refresh-button'));
-
-    await waitFor(() => expect(screen.getByTestId('data-display')).toHaveTextContent('Updated Data'));
+    await waitFor(() => expect(screen.getByTestId('data-display')).toHaveTextUpdateContent('Updated Data'));
   });
 
+  // Error Handling Test Example
+  it('handles errors during data fetch gracefully', async () => {
+    axios.get.mockRejectedValue(new Error('Async error'));
+
+    await act(async () => {
+      render(<YourComponent apiUrl={`${API_BASE_URL}/error-endpoint`} />);
+    });
+
+    expect(screen.getByTestId('error-display')).toHaveTextContent('Failed to fetch data');
+  });
 });
